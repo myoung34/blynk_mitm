@@ -1,5 +1,6 @@
 import socket
 import struct
+import sys
 from pprint import pprint
 
 def parse_response(rsp_data, msg_buffer):
@@ -9,13 +10,11 @@ def parse_response(rsp_data, msg_buffer):
         msg_type, msg_id, h_data = struct.unpack('!BHH', rsp_data[:msg_head_length])
     except struct.error:
         return None
-    if msg_type in [0, 6, 16, 19, 29]: # dataless packets (redirect, ping, etc)
-        pass
-    elif msg_type in [20, 15, 17, 41]:
+    if msg_type in [2, 20, 15, 17, 41]:
         msg_body = rsp_data[msg_head_length: msg_head_length + h_data]
         msg_args = [itm.decode('utf-8') for itm in msg_body.split(b'\0')]
     else:
-        raise Exception("Unknown message type: '{}'".format(msg_type))
+        pass
     return msg_type, msg_id, h_data, msg_args
 
 
@@ -32,9 +31,12 @@ with conn:
             if data:
                 print('received: ')
                 pprint(data)
-                if data[0] == 29: # auth?
+                if data[0] in [2, 29]: # auth?
                     print('sending auth success \\x00\\x00\\x01\\x00\\xc8') # -> .hex() => '00000100c8'
                     conn.sendall(b'\x00\x00\x01\x00\xc8') # -> .hex() => '00000100c8'
+        except KeyboardInterrupt:
+            socket.close()
+            sys.exit()
         except Exception as e:
             socket.close()
             raise e
